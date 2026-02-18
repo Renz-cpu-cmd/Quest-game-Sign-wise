@@ -74,7 +74,7 @@ class _GameHUDState extends State<GameHUD> {
                               color: i < lives
                                   ? const Color(0xFFEF4444)
                                   : Colors.white.withOpacity(0.3),
-                              size: 24,
+                              size: 30,
                               shadows: i < lives
                                   ? [
                                       const Shadow(
@@ -137,7 +137,7 @@ class _GameHUDState extends State<GameHUD> {
                         const Icon(
                           Icons.stars,
                           color: Color(0xFF60A5FA),
-                          size: 20,
+                          size: 30,
                           shadows: [
                             Shadow(blurRadius: 8, color: Color(0xFF3B82F6)),
                           ],
@@ -147,7 +147,7 @@ class _GameHUDState extends State<GameHUD> {
                           '$xp XP',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             shadows: [
                               Shadow(blurRadius: 2, color: Colors.black),
@@ -164,8 +164,8 @@ class _GameHUDState extends State<GameHUD> {
 
               // --- LEVEL PROGRESS BAR ---
               Container(
-                height: 16, // Thinner bar
-                margin: const EdgeInsets.symmetric(horizontal: 40),
+                height: 25, // Thinner bar
+                margin: const EdgeInsets.symmetric(horizontal: 100),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(8),
@@ -195,7 +195,7 @@ class _GameHUDState extends State<GameHUD> {
                           'Level ${(xp ~/ xpForNextLevel) + 1}',
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             shadows: [
                               Shadow(blurRadius: 2, color: Colors.black),

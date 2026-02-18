@@ -1,14 +1,21 @@
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../core/audio_manager.dart';
 import 'main_menu_screen.dart';
 
 /// Splash Screen with animated logo and circular reveal transition
 /// Features:
 /// - 3-layer blurred parallax background (Sigma 5.0)
-/// - Logo fade-in (1.5s) + breathing scale animation (1.0 -> 1.05)
-/// - Loading Bar
-/// - Circular clip reveal transition to Main Menu after 3s
+/// - Floating magic particles (purple & amber)
+/// - Staggered animation: bg (0-0.5s) → logo slide-up (0.5-1.5s) → loading bar (1.5s+)
+/// - Logo breathing scale animation (1.0 -> 1.05)
+/// - Rotating glow ring behind logo
+/// - Flavor text above loading bar
+/// - Loading Bar with shine effect
+/// - Pulsing "Tap to Begin" after loading completes
+/// - Version number at bottom
+/// - Circular clip reveal transition to Main Menu
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -19,34 +26,77 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   // Animation controllers
-  late AnimationController _fadeController;
+  late AnimationController _bgFadeController;
+  late AnimationController _logoFadeController;
+  late AnimationController _logoSlideController;
   late AnimationController _breathingController;
-  late AnimationController _revealController;
   late AnimationController _loadingBarController;
+  late AnimationController _loadingFadeController;
+  late AnimationController _revealController;
+  late AnimationController _particleController;
+  late AnimationController _glowRotationController;
+  late AnimationController _tapPulseController;
 
   // Animations
-  late Animation<double> _fadeAnimation;
+  late Animation<double> _bgFadeAnimation;
+  late Animation<double> _logoFadeAnimation;
+  late Animation<Offset> _logoSlideAnimation;
   late Animation<double> _breathingAnimation;
-  late Animation<double> _revealAnimation;
   late Animation<double> _loadingBarAnimation;
+  late Animation<double> _loadingFadeAnimation;
+  late Animation<double> _revealAnimation;
+  late Animation<double> _glowRotationAnimation;
+  late Animation<double> _tapPulseAnimation;
+
+  // Particle state
+  final List<_MagicParticle> _particles = [];
+  final math.Random _random = math.Random();
 
   // Asset loading state
   bool _assetsLoaded = false;
   bool _transitionStarted = false;
+  bool _loadingComplete = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Fade-in animation (1.5 seconds)
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    // --- Staggered Animation Controllers ---
+
+    // 1) Background fade-in (0 → 0.5s)
+    _bgFadeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
+    _bgFadeAnimation = CurvedAnimation(
+      parent: _bgFadeController,
+      curve: Curves.easeIn,
+    );
+
+    // 2) Logo fade-in + slide-up (0.5s → 1.5s)
+    _logoFadeController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _logoFadeAnimation = CurvedAnimation(
+      parent: _logoFadeController,
       curve: Curves.easeInOut,
     );
+
+    _logoSlideController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _logoSlideAnimation =
+        Tween<Offset>(
+          begin: const Offset(0, 0.15), // Start slightly below
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: _logoSlideController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     // Breathing/pulse animation (1.0 -> 1.05 scale, 2s duration)
     _breathingController = AnimationController(
@@ -61,14 +111,24 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // Loading Bar Animation (3 seconds to fill)
+    // 3) Loading Bar + flavor text fade-in (appears at 1.5s)
+    _loadingFadeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _loadingFadeAnimation = CurvedAnimation(
+      parent: _loadingFadeController,
+      curve: Curves.easeIn,
+    );
+
+    // Loading Bar fill animation (1.5s duration after it appears)
     _loadingBarController = AnimationController(
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     );
     _loadingBarAnimation = CurvedAnimation(
       parent: _loadingBarController,
-      curve: Curves.linear,
+      curve: Curves.easeInOut,
     );
 
     // Circular reveal animation
@@ -81,28 +141,118 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeInOut,
     );
 
+    // Particle animation controller (runs continuously)
+    _particleController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..addListener(_updateParticles);
+
+    // Rotating glow ring behind logo (slow 8s rotation)
+    _glowRotationController = AnimationController(
+      duration: const Duration(seconds: 8),
+      vsync: this,
+    );
+    _glowRotationAnimation = Tween<double>(
+      begin: 0,
+      end: 2 * math.pi,
+    ).animate(_glowRotationController);
+
+    // Pulsing "Tap to Begin" animation
+    _tapPulseController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _tapPulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _tapPulseController, curve: Curves.easeInOut),
+    );
+
     // Start sequence after a short delay to ensure build is complete
     Future.delayed(const Duration(milliseconds: 100), _startSplashSequence);
   }
 
+  // --- Particle System ---
+
+  void _spawnParticles(Size screenSize) {
+    // Spawn 1-2 particles per frame, max 40
+    if (_particles.length < 40 && _random.nextDouble() < 0.3) {
+      _particles.add(
+        _MagicParticle(
+          x: _random.nextDouble() * screenSize.width,
+          y: screenSize.height + 10,
+          speed: _random.nextDouble() * 1.5 + 0.5,
+          size: _random.nextDouble() * 4 + 2,
+          opacity: _random.nextDouble() * 0.6 + 0.2,
+          color: _random.nextBool()
+              ? const Color(0xFF8B5CF6) // Purple
+              : const Color(0xFFFFB800), // Amber
+          wobbleOffset: _random.nextDouble() * math.pi * 2,
+          wobbleSpeed: _random.nextDouble() * 0.02 + 0.01,
+        ),
+      );
+    }
+  }
+
+  void _updateParticles() {
+    if (!mounted) return;
+    final size = MediaQuery.of(context).size;
+
+    _spawnParticles(size);
+
+    setState(() {
+      for (final p in _particles) {
+        p.y -= p.speed;
+        p.x += math.sin(p.wobbleOffset) * 0.5; // Gentle horizontal wobble
+        p.wobbleOffset += p.wobbleSpeed;
+        // Fade out as they rise
+        p.currentOpacity = p.opacity * (p.y / size.height).clamp(0.0, 1.0);
+      }
+      // Remove particles that have gone off-screen
+      _particles.removeWhere((p) => p.y < -20);
+    });
+  }
+
+  // --- Animation Sequence ---
+
   Future<void> _startSplashSequence() async {
     if (!mounted) return;
 
-    // Simulate asset loading delay + show assets
     setState(() {
       _assetsLoaded = true;
     });
 
-    // Start animations
-    _fadeController.forward();
-    _loadingBarController.forward();
+    // Start particles immediately
+    _particleController.repeat();
+
+    // Step 1: Background fades in (0 → 0.5s)
+    _bgFadeController.forward();
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    // Step 2: Logo fades in + slides up (0.5s → 1.5s)
+    _logoFadeController.forward();
+    _logoSlideController.forward();
     _breathingController.repeat(reverse: true);
 
-    // Wait for splash duration (3 seconds total)
-    await Future.delayed(const Duration(seconds: 3));
+    // Play crystal chime when logo appears
+    AudioManager.instance.playSplashChime();
+    await Future.delayed(const Duration(milliseconds: 1000));
+    if (!mounted) return;
+
+    // Step 3: Loading bar + flavor text appear (1.5s+)
+    _loadingFadeController.forward();
+    _loadingBarController.forward();
+
+    // Start glow rotation
+    _glowRotationController.repeat();
+
+    // Wait for loading bar to complete (~2.5s), then show "Tap to Begin"
+    await Future.delayed(const Duration(milliseconds: 2700));
 
     if (mounted) {
-      _startTransition();
+      setState(() {
+        _loadingComplete = true;
+      });
+      _tapPulseController.repeat(reverse: true);
     }
   }
 
@@ -128,10 +278,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _bgFadeController.dispose();
+    _logoFadeController.dispose();
+    _logoSlideController.dispose();
     _breathingController.dispose();
-    _revealController.dispose();
     _loadingBarController.dispose();
+    _loadingFadeController.dispose();
+    _revealController.dispose();
+    _particleController.dispose();
+    _glowRotationController.dispose();
+    _tapPulseController.dispose();
     super.dispose();
   }
 
@@ -142,28 +298,67 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFF1a0f2e), // Dark purple fallback
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Blurred parallax background
-          if (_assetsLoaded) _buildBlurredBackground(),
-
-          // Animated logo and loading bar
-          if (_assetsLoaded)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildAnimatedLogo(gameHeight),
-                  SizedBox(height: gameHeight * 0.05),
-                  _buildCrystalLoadingBar(gameHeight),
-                ],
+      body: GestureDetector(
+        onTap: () {
+          if (_loadingComplete && !_transitionStarted) {
+            _startTransition();
+          }
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Blurred parallax background (staggered fade-in)
+            if (_assetsLoaded)
+              FadeTransition(
+                opacity: _bgFadeAnimation,
+                child: _buildBlurredBackground(),
               ),
-            ),
 
-          // Circular reveal overlay
-          if (_transitionStarted) _buildCircularReveal(),
-        ],
+            // Floating magic particles (behind logo)
+            if (_assetsLoaded) _buildParticles(),
+
+            // Animated logo and loading bar
+            if (_assetsLoaded)
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildAnimatedLogo(gameHeight),
+                    SizedBox(height: gameHeight * 0.05),
+                    _buildFlavorText(),
+                    const SizedBox(height: 8),
+                    if (!_loadingComplete)
+                      _buildCrystalLoadingBar(gameHeight)
+                    else
+                      _buildTapToBegin(),
+                  ],
+                ),
+              ),
+
+            // Version number at bottom
+            if (_assetsLoaded)
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: FadeTransition(
+                  opacity: _bgFadeAnimation,
+                  child: const Text(
+                    'v1.0.0',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Circular reveal overlay
+            if (_transitionStarted) _buildCircularReveal(),
+          ],
+        ),
       ),
     );
   }
@@ -198,33 +393,128 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  /// Build centered logo with fade-in and breathing animation
+  /// Build floating magic particles
+  Widget _buildParticles() {
+    return CustomPaint(
+      size: Size.infinite,
+      painter: _ParticlePainter(particles: _particles),
+    );
+  }
+
+  /// Build centered logo with fade-in, slide-up, breathing animation, and rotating glow ring
   Widget _buildAnimatedLogo(double gameHeight) {
+    final logoSize = MediaQuery.of(context).size.width * 0.6;
+
     return FadeTransition(
-      opacity: _fadeAnimation,
-      child: AnimatedBuilder(
-        animation: _breathingAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _breathingAnimation.value,
-            child: child,
-          );
-        },
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.6,
-            maxHeight: gameHeight * 0.4,
+      opacity: _logoFadeAnimation,
+      child: SlideTransition(
+        position: _logoSlideAnimation,
+        child: AnimatedBuilder(
+          animation: _breathingAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _breathingAnimation.value,
+              child: child,
+            );
+          },
+          child: SizedBox(
+            width: logoSize,
+            height: gameHeight * 0.4,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Rotating glow ring behind logo
+                AnimatedBuilder(
+                  animation: _glowRotationAnimation,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _glowRotationAnimation.value,
+                      child: Container(
+                        width: logoSize * 0.85,
+                        height: logoSize * 0.85,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: SweepGradient(
+                            colors: [
+                              const Color(0xFF8B5CF6).withOpacity(0.0),
+                              const Color(0xFF8B5CF6).withOpacity(0.6),
+                              const Color(0xFFC084FC).withOpacity(0.3),
+                              const Color(0xFFFFB800).withOpacity(0.4),
+                              const Color(0xFF8B5CF6).withOpacity(0.0),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF8B5CF6).withOpacity(0.4),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Logo image on top
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: logoSize,
+                    maxHeight: gameHeight * 0.4,
+                  ),
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B5CF6).withOpacity(0.6),
+                        blurRadius: 50,
+                        spreadRadius: 15,
+                      ),
+                    ],
+                  ),
+                  child: Image.asset(
+                    'assets/images/ui/logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ],
+            ),
           ),
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8B5CF6).withOpacity(0.6),
-                blurRadius: 50,
-                spreadRadius: 15,
-              ),
-            ],
-          ),
-          child: Image.asset('assets/images/ui/logo.png', fit: BoxFit.contain),
+        ),
+      ),
+    );
+  }
+
+  /// Build flavor text above loading bar
+  Widget _buildFlavorText() {
+    return FadeTransition(
+      opacity: _loadingFadeAnimation,
+      child: const Text(
+        'Awakening the Crystals...',
+        style: TextStyle(
+          color: Color(0xFFC084FC),
+          fontSize: 18,
+          fontStyle: FontStyle.italic,
+          letterSpacing: 1.2,
+          shadows: [Shadow(color: Color(0xFF8B5CF6), blurRadius: 8)],
+        ),
+      ),
+    );
+  }
+
+  /// Build pulsing "Tap to Begin" text
+  Widget _buildTapToBegin() {
+    return AnimatedBuilder(
+      animation: _tapPulseAnimation,
+      builder: (context, child) {
+        return Opacity(opacity: _tapPulseAnimation.value, child: child);
+      },
+      child: const Text(
+        '— Tap to Begin —',
+        style: TextStyle(
+          color: Color(0xFFC084FC),
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 2.0,
+          shadows: [Shadow(color: Color(0xFF8B5CF6), blurRadius: 12)],
         ),
       ),
     );
@@ -236,7 +526,7 @@ class _SplashScreenState extends State<SplashScreen>
     final barHeight = gameHeight * 0.02;
 
     return FadeTransition(
-      opacity: _fadeAnimation,
+      opacity: _loadingFadeAnimation,
       child: Container(
         width: barWidth,
         height: barHeight,
@@ -300,6 +590,31 @@ class _SplashScreenState extends State<SplashScreen>
                 );
               },
             ),
+            // Crystal icon riding the loading bar edge
+            AnimatedBuilder(
+              animation: _loadingBarAnimation,
+              builder: (context, child) {
+                return Positioned(
+                  left: barWidth * _loadingBarAnimation.value - 10,
+                  top: -8,
+                  child: Icon(
+                    Icons.diamond,
+                    color: Color.lerp(
+                      const Color(0xFFC084FC),
+                      const Color(0xFFFFB800),
+                      _loadingBarAnimation.value,
+                    ),
+                    size: barHeight + 16,
+                    shadows: [
+                      Shadow(
+                        color: const Color(0xFF8B5CF6).withOpacity(0.8),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -326,6 +641,56 @@ class _SplashScreenState extends State<SplashScreen>
       },
     );
   }
+}
+
+/// Data class for a floating magic particle
+class _MagicParticle {
+  double x;
+  double y;
+  double speed;
+  double size;
+  double opacity;
+  double currentOpacity;
+  Color color;
+  double wobbleOffset;
+  double wobbleSpeed;
+
+  _MagicParticle({
+    required this.x,
+    required this.y,
+    required this.speed,
+    required this.size,
+    required this.opacity,
+    required this.color,
+    required this.wobbleOffset,
+    required this.wobbleSpeed,
+  }) : currentOpacity = opacity;
+}
+
+/// Custom painter to render magic particles
+class _ParticlePainter extends CustomPainter {
+  final List<_MagicParticle> particles;
+
+  _ParticlePainter({required this.particles});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in particles) {
+      // Core particle
+      final paint = Paint()
+        ..color = p.color.withOpacity(p.currentOpacity.clamp(0.0, 1.0));
+      canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
+
+      // Soft glow around particle
+      final glowPaint = Paint()
+        ..color = p.color.withOpacity((p.currentOpacity * 0.3).clamp(0.0, 1.0))
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      canvas.drawCircle(Offset(p.x, p.y), p.size * 2.5, glowPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => true;
 }
 
 /// Custom clipper for circular reveal effect

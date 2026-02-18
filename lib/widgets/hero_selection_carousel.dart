@@ -203,38 +203,6 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Gold Display
-        Align(
-          alignment: Alignment.topRight,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 10, right: 20),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.amber),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.monetization_on,
-                  color: Colors.amber,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '$_userGold G',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
         // Carousel Row
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -242,7 +210,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
             _buildArrow(Icons.arrow_back_ios, () => _cycleHero(-1)),
 
             SizedBox(
-              width: size.width * 0.6, // Wider container
+              width: size.width * 0.3, // Wider container
               height: carouselHeight,
               child: Stack(
                 alignment: Alignment.center,
@@ -308,7 +276,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
         Text(
           hero.name,
           style: TextStyle(
-            fontSize: size.height * 0.04,
+            fontSize: size.height * 0.05,
             color: Colors.white,
             fontWeight: FontWeight.bold,
             shadows: [
@@ -317,7 +285,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
           ),
         ),
 
-        const SizedBox(height: 10),
+        const SizedBox(height: 15),
 
         // Action Button
         _buildActionButton(hero, isLocked),
@@ -327,7 +295,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
 
   Widget _buildArrow(IconData icon, VoidCallback onTap) {
     return IconButton(
-      icon: Icon(icon, color: Colors.white, size: 32),
+      icon: Icon(icon, color: Colors.white, size: 28),
       onPressed: onTap,
       style: IconButton.styleFrom(
         backgroundColor: Colors.black26,
@@ -343,7 +311,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
         style: ElevatedButton.styleFrom(
           backgroundColor: isLocked ? Colors.grey : const Color(0xFF8B5CF6),
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 15),
           elevation: isLocked ? 0 : 8,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -363,7 +331,7 @@ class _HeroSelectionCarouselState extends State<HeroSelectionCarousel> {
           children: [
             Text(
               isLocked ? 'UNLOCK' : 'START QUEST',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             if (isLocked) ...[
               const SizedBox(width: 8),

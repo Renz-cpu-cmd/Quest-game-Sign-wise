@@ -167,21 +167,21 @@ class _QuizTerminalState extends State<QuizTerminal> {
                   Text(
                     'What letter is this sign?',
                     style: TextStyle(
-                      fontSize: isSmallScreen ? 14 : 20,
+                      fontSize: isSmallScreen ? 18 : 20,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
 
-                  SizedBox(height: isSmallScreen ? 12 : 24),
+                  SizedBox(height: isSmallScreen ? 20 : 40),
 
                   // Answer Grid (2x2)
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
-                    mainAxisSpacing: isSmallScreen ? 8 : 12,
-                    crossAxisSpacing: isSmallScreen ? 8 : 12,
-                    childAspectRatio: isSmallScreen ? 2.5 : 2,
+                    mainAxisSpacing: isSmallScreen ? 20 : 30,
+                    crossAxisSpacing: isSmallScreen ? 10 : 12,
+                    childAspectRatio: isSmallScreen ? 2.5 : 4,
                     physics: const NeverScrollableScrollPhysics(),
                     children: choices.map((choice) {
                       final isSelected = selectedAnswer == choice;

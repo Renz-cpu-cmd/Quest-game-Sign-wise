@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,9 @@ class AudioManager {
   static final AudioManager instance = AudioManager._internal();
   factory AudioManager() => instance;
   AudioManager._internal();
+
+  // Dedicated player for BGM (looping)
+  final AudioPlayer _bgmPlayer = AudioPlayer();
 
   bool _initialized = false;
 
@@ -27,11 +31,6 @@ class AudioManager {
       bgmVolume = prefs.getDouble(prefBgmKey) ?? 0.5;
       sfxVolume = prefs.getDouble(prefSfxKey) ?? 0.5;
 
-      // Preload audio files (using online resources)
-      await FlameAudio.audioCache.loadAll([
-        // Add audio files here when available
-      ]);
-
       _initialized = true;
       debugPrint('Audio system initialized (BGM: $bgmVolume, SFX: $sfxVolume)');
     } catch (e) {
@@ -43,7 +42,7 @@ class AudioManager {
   Future<void> setBgmVolume(double value) async {
     bgmVolume = value.clamp(0.0, 1.0);
     // Update active music volume if playing
-    // FlameAudio.bgm.audioPlayer?.setVolume(bgmVolume);
+    _bgmPlayer.setVolume(bgmVolume);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(prefBgmKey, bgmVolume);
@@ -57,26 +56,34 @@ class AudioManager {
     await prefs.setDouble(prefSfxKey, sfxVolume);
   }
 
+  /// Play splash screen crystal chime
+  Future<void> playSplashChime() async {
+    try {
+      final player = AudioPlayer();
+      await player.setVolume(sfxVolume);
+      await player.play(AssetSource('audio/sfx/crystal_chime.mp3'));
+      debugPrint('Playing splash chime');
+    } catch (e) {
+      debugPrint('Failed to play splash chime: $e');
+    }
+  }
+
   /// Play background music (looped)
   Future<void> playBGM() async {
-    if (!_initialized) return;
-
     try {
-      // Using a placeholder URL or local file
-      // For now, we'll skip actual playback since we don't have assets
+      await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+      await _bgmPlayer.setVolume(bgmVolume);
+      await _bgmPlayer.play(AssetSource('audio/bgm/menu_theme.mp3'));
       debugPrint('BGM playing at volume $bgmVolume');
-
-      // When you have audio files:
-      // await FlameAudio.bgm.play('crystal_world_theme.mp3', volume: bgmVolume);
     } catch (e) {
       debugPrint('Failed to play BGM: $e');
     }
   }
 
   /// Stop background music
-  void stopBGM() {
+  Future<void> stopBGM() async {
     try {
-      FlameAudio.bgm.stop();
+      await _bgmPlayer.stop();
     } catch (e) {
       debugPrint('Failed to stop BGM: $e');
     }
@@ -117,8 +124,10 @@ class AudioManager {
     if (sfxVolume <= 0) return;
 
     try {
+      final player = AudioPlayer();
+      await player.setVolume(sfxVolume);
+      await player.play(AssetSource('audio/sfx/$file'));
       debugPrint('Playing SFX: $file at volume $sfxVolume');
-      // await FlameAudio.play(file, volume: sfxVolume);
     } catch (e) {
       debugPrint('Error playing SFX $file: $e');
     }
@@ -126,7 +135,7 @@ class AudioManager {
 
   /// Clean up resources
   void dispose() {
-    stopBGM();
+    _bgmPlayer.dispose();
   }
 }
 

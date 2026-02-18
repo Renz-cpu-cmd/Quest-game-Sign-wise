@@ -16,11 +16,11 @@ class GameOverScreen extends StatelessWidget {
       child: Center(
         child: SingleChildScrollView(
           child: Container(
-            padding: const EdgeInsets.all(24),
-            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.all(20),
+            margin: const EdgeInsets.symmetric(horizontal: 190),
             decoration: BoxDecoration(
               color: const Color(0xFF2a1f3d),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: const Color(0xFF8B5CF6), width: 2),
             ),
             child: Column(
@@ -50,7 +50,7 @@ class GameOverScreen extends StatelessWidget {
                         Text(
                           '${game.gameState.score}',
                           style: const TextStyle(
-                            fontSize: 24,
+                            fontSize: 40,
                             color: Colors.white,
                             fontFamily: 'Pixel',
                           ),
@@ -66,7 +66,7 @@ class GameOverScreen extends StatelessWidget {
                         Text(
                           '+${game.gameState.gold}',
                           style: const TextStyle(
-                            fontSize: 24,
+                            fontSize: 40,
                             color: Colors.amber,
                             fontFamily: 'Pixel',
                           ),
@@ -90,7 +90,7 @@ class GameOverScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF8B5CF6),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
+                      horizontal: 20,
                       vertical: 16,
                     ),
                   ),
@@ -111,7 +111,7 @@ class GameOverScreen extends StatelessWidget {
                   },
                   child: const Text(
                     'Return to Menu',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: TextStyle(color: Colors.white70, fontSize: 18),
                   ),
                 ),
               ],

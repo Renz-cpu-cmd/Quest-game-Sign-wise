@@ -59,7 +59,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // Header
                   const Center(
                     child: Text(
-                      'Arcane Archives',
+                      'Settings',
                       style: TextStyle(
                         fontFamily: 'Pixel',
                         fontSize: 40,
@@ -72,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 40),
 
                   // --- Audio Settings ---
-                  _buildSectionHeader('Magical Resonance (Audio)'),
+                  _buildSectionHeader('Audio'),
                   const SizedBox(height: 16),
 
                   _buildSlider('Background Music', _bgmVolume, (val) {
@@ -87,7 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 40),
 
                   // --- Instructions ---
-                  _buildSectionHeader('Grimoire of Control'),
+                  _buildSectionHeader('Controller'),
                   const SizedBox(height: 16),
 
                   Container(
@@ -116,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 40),
 
                   // --- Data Management ---
-                  _buildSectionHeader('Flux Control (Data)'),
+                  _buildSectionHeader('Data'),
                   const SizedBox(height: 16),
 
                   Center(

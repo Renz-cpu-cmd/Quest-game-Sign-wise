@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/audio_manager.dart';
 import '../main.dart'; // For GameScreen
 import '../widgets/hero_selection_carousel.dart';
 import 'leaderboard_screen.dart';
@@ -7,8 +9,36 @@ import 'settings_screen.dart';
 
 /// Main Menu Screen
 /// Displays the game title and the Hero Selection Carousel
-class MainMenuScreen extends StatelessWidget {
+class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> {
+  int _userGold = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGold();
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    await AudioManager.instance.initialize();
+    AudioManager.instance.playBGM();
+  }
+
+  Future<void> _loadGold() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _userGold = prefs.getInt('gold_balance') ?? 0;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +132,43 @@ class MainMenuScreen extends StatelessWidget {
                 ),
               ),
 
+              // --- Gold Display (Top Center-Right) ---
+              Positioned(
+                top: 40,
+                right: 20,
+                child: SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Colors.amber,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_userGold G',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               // --- Corner Icons (positioned last to be on top) ---
 
               // Leaderboard (Top Left)
@@ -126,8 +193,8 @@ class MainMenuScreen extends StatelessWidget {
 
               // Settings (Top Right)
               Positioned(
-                top: 40,
-                right: 20,
+                top: 130,
+                left: 20,
                 child: SafeArea(
                   child: _buildIconMenuButton(
                     context,
